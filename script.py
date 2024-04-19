@@ -1,63 +1,72 @@
 from bs4 import BeautifulSoup as bs
 import requests
 
-from credentials import s_login, s_password, s_site, s_url_auth, s_url
+from check import check_connection
+from credentials import s_username, s_pass, s_site, s_url_auth, s_url
 
 
 def parsing():
-
     return_data = []
     site = s_site
     url_auth = s_url_auth
 
-    session = requests.Session()
+    if check_connection() is False:
+        error = "Нет подключения к SPARDECK.\nПопробуйте позднее."
+        return_data.append(error)
+        return return_data
+    else:
+        session = requests.Session()
 
-    r = session.get(url_auth)
-    soup = bs(r.content, 'html.parser')
+        r = session.get(url_auth)
+        soup = bs(r.content, 'html.parser')
 
-    csrf = soup.find('input', {'name': '__RequestVerificationToken'})['value']
+        csrf = soup.find('input',
+                         {'name': '__RequestVerificationToken'})['value']
 
-    data = {'__RequestVerificationToken': csrf,
-            'UserName': s_login,
-            'Password': s_password,
-            }
-    r = session.post(url_auth, data=data)
+        data = {'__RequestVerificationToken': csrf,
+                'UserName': s_username,
+                'Password': s_pass,
+                }
+        r = session.post(url_auth, data=data)
 
-    url = s_url
-    main_page = session.get(url)
-    soup_main = bs(main_page.text, 'html.parser')
-    shiprows = soup_main.find_all('tr')
-    flag = 0
+        url = s_url
+        main_page = session.get(url)
+        soup_main = bs(main_page.text, 'html.parser')
+        shiprows = soup_main.find_all('tr')
+        flag = 0
 
-    for shiptds in shiprows:
-        shiptds = shiptds.find_all('td')
-        if len(shiptds) == 1:
-            place = shiptds[0].text.strip().split("|")[0]
-            if (
-                "НМТП" in place
-                or "Шесхарис" in place
-                or "Лесной порт" in place
-                or "НЗТ" in place
-            ):
-                return_data.append(f'\n ---- {place} ----')
-                flag = 1
-            else:
-                flag = 0
-        if len(shiptds) > 1 and flag == 1:
-            name = shiptds[1].find('a').text
-            detail = site + shiptds[1].find('a').get('href')
-            shiptype = shiptds[1].find('small').text.replace(".", "")
-            date = shiptds[2].find('div').text.strip()
-            operation = shiptds[2].text.strip().split()[0]
-            if 'Швартовка' in operation:
-                birth = shiptds[4].text.replace("- ", "-").strip().split()[0]
-            else:
-                birth = shiptds[3].text.replace("- ", "-").strip().split()[0]
-            detail_page = session.get(detail)
-            soup_detail = bs(detail_page.text, 'html.parser')
-            length = (int(soup_detail.find(title='Длина судна'
-                                           ).text.split(',')[0]))
-            if length >= 170:
-                return_data.append(f'{name} —— Длина: {length} м. —— '
-                                   f'{date} —— {operation} —— {birth} \n')
-    return return_data
+        for shiptds in shiprows:
+            shiptds = shiptds.find_all('td')
+            if len(shiptds) == 1:
+                place = shiptds[0].text.strip().split("|")[0]
+                if (
+                    "НМТП" in place
+                    or "Шесхарис" in place
+                    or "Лесной порт" in place
+                    or "НЗТ" in place
+                ):
+                    return_data.append(f'\n ---- {place} ----')
+                    flag = 1
+                else:
+                    flag = 0
+            if len(shiptds) > 1 and flag == 1:
+                name = shiptds[1].find('a').text
+                detail = site + shiptds[1].find('a').get('href')
+                shiptype = shiptds[1].find('small').text.replace(".", "")
+                date = shiptds[2].find('div').text.strip()
+                operation = shiptds[2].text.strip().split()[0]
+                if 'Швартовка' in operation:
+                    birth = (shiptds[4].text.replace("- ", "-")
+                             .strip().split()[0])
+                else:
+                    birth = (shiptds[3].text.replace("- ", "-")
+                             .strip().split()[0])
+                detail_page = session.get(detail)
+                soup_detail = bs(detail_page.text, 'html.parser')
+                length = (int(soup_detail.find(title='Длина судна'
+                                               ).text.split(',')[0]))
+                if length >= 170:
+                    return_data.append(f'{name} —— Длина: {length} м. —— '
+                                       f'{date} —— {operation} —— {birth} \n')
+        session.close()
+        return return_data

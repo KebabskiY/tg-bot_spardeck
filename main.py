@@ -25,7 +25,8 @@ async def send_welcome(message: types.Message):
         resize_keyboard=True,
         input_field_placeholder="Выберите нужное действие"
     )
-    await message.answer('Привет! \nЯ помогу определить как много работы тебе предстоит!', reply_markup=keyboard)
+    await message.answer('Привет! \nЯ помогу определить как много работы тебе предстоит!',
+                         reply_markup=keyboard)
 
 
 @dp.message(F.text.lower() == "сколько работы?")
